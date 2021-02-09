@@ -58,6 +58,7 @@ macro_rules! smaller_tuples_too {
 mod archetype;
 mod borrow;
 mod bundle;
+mod dynamic_query;
 mod entities;
 mod entity_builder;
 mod query;
@@ -69,6 +70,7 @@ mod world;
 pub use archetype::Archetype;
 pub use borrow::{EntityRef, Ref, RefMut};
 pub use bundle::{Bundle, DynamicBundle, MissingComponent};
+pub use dynamic_query::{DynamicQuery, DynamicQueryTypes};
 pub use entities::{Entity, NoSuchEntity};
 pub use entity_builder::{BuiltEntity, EntityBuilder};
 pub use query::{

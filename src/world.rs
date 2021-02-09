@@ -5,7 +5,7 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use crate::alloc::vec::Vec;
+use crate::{alloc::vec::Vec, DynamicQuery, DynamicQueryTypes};
 use core::any::TypeId;
 use core::convert::TryFrom;
 use core::{fmt, mem, ptr};
@@ -313,6 +313,11 @@ impl World {
     /// `query`, this returns an `IntoIterator` which can be passed directly to a `for` loop.
     pub fn query_mut<Q: Query>(&mut self) -> QueryMut<'_, Q> {
         QueryMut::new(&self.entities.meta, &mut self.archetypes)
+    }
+
+    /// Perform a dynamic query.
+    pub fn query_dynamic<'q>(&'q self, types: DynamicQueryTypes<'q>) -> DynamicQuery<'q> {
+        DynamicQuery::new(types, &self.archetypes, &self.entities.meta)
     }
 
     /// Prepare a query against a single entity, using dynamic borrow checking
