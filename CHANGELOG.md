@@ -1,9 +1,19 @@
-# 0.3.2 (Unreleased)
+# 0.4.0 (Unreleased)
+
+### Added
+- `EntityRef::len` to query how many components an entity has
+- Support for serializers that require maps to be of known length
+- An alternative column-major serialization layout for better performance and compressibility
+
+# 0.3.2
 
 ### Added
 - The `serde` feature, enabling serialization of `Entity` handles, and a `serialization` module to
   simplify (de)serializing worlds
 - `World::len()` exposing the number of live entities
+- Access to component data inside `Archetypes` to allow custom column-major operations
+- `ColumnBatch` for efficiently spawning collections of entities with the same components when those
+  components' types are not statically known
 
 # 0.3.1 (November 9, 2020)
 

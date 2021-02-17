@@ -56,6 +56,7 @@ macro_rules! smaller_tuples_too {
 }
 
 mod archetype;
+mod batch;
 mod borrow;
 mod bundle;
 mod dynamic_query;
@@ -68,6 +69,7 @@ pub mod serialize;
 mod world;
 
 pub use archetype::Archetype;
+pub use batch::{ColumnBatch, ColumnBatchBuilder, ColumnBatchType};
 pub use borrow::{EntityRef, Ref, RefMut};
 pub use bundle::{Bundle, DynamicBundle, MissingComponent};
 pub use dynamic_query::{DynamicQuery, DynamicQueryTypes};
@@ -77,7 +79,10 @@ pub use query::{
     Access, BatchedIter, Query, QueryBorrow, QueryItem, QueryIter, QueryMut, With, Without,
 };
 pub use query_one::QueryOne;
-pub use world::{ArchetypesGeneration, Component, ComponentError, Iter, SpawnBatchIter, World};
+pub use world::{
+    ArchetypesGeneration, Component, ComponentError, Iter, SpawnBatchIter, SpawnColumnBatchIter,
+    World,
+};
 
 // Unstable implementation details needed by the macros
 #[doc(hidden)]

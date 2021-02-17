@@ -435,3 +435,71 @@ fn duplicate_components_panic() {
     let mut world = World::new();
     world.reserve::<(f32, i64, f32)>(1);
 }
+
+#[test]
+fn spawn_column_batch() {
+    let mut world = World::new();
+    let mut batch_ty = ColumnBatchType::new();
+    batch_ty.add::<i32>().add::<bool>();
+
+    // Unique archetype
+    let b;
+    {
+        let mut batch = batch_ty.clone().into_batch(2);
+        let mut bs = batch.writer::<bool>().unwrap();
+        bs.push(true).unwrap();
+        bs.push(false).unwrap();
+        let mut is = batch.writer::<i32>().unwrap();
+        is.push(42).unwrap();
+        is.push(43).unwrap();
+        let entities = world
+            .spawn_column_batch(batch.build().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(entities.len(), 2);
+        assert_eq!(
+            world.query_one_mut::<(&i32, &bool)>(entities[0]).unwrap(),
+            (&42, &true)
+        );
+        assert_eq!(
+            world.query_one_mut::<(&i32, &bool)>(entities[1]).unwrap(),
+            (&43, &false)
+        );
+        world.despawn(entities[0]).unwrap();
+        b = entities[1];
+    }
+
+    // Duplicate archetype
+    {
+        let mut batch = batch_ty.clone().into_batch(2);
+        let mut bs = batch.writer::<bool>().unwrap();
+        bs.push(true).unwrap();
+        bs.push(false).unwrap();
+        let mut is = batch.writer::<i32>().unwrap();
+        is.push(44).unwrap();
+        is.push(45).unwrap();
+        let entities = world
+            .spawn_column_batch(batch.build().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(entities.len(), 2);
+        assert_eq!(*world.get::<i32>(b).unwrap(), 43);
+        assert_eq!(*world.get::<i32>(entities[0]).unwrap(), 44);
+        assert_eq!(*world.get::<i32>(entities[1]).unwrap(), 45);
+    }
+}
+
+#[test]
+fn columnar_access() {
+    let mut world = World::new();
+    let e = world.spawn(("abc", 123));
+    let f = world.spawn(("def", 456, true));
+    let g = world.spawn(("ghi", 789, false));
+    let mut archetypes = world.archetypes();
+    let _empty = archetypes.next().unwrap();
+    let a = archetypes.next().unwrap();
+    assert_eq!(a.ids(), &[e.id()]);
+    assert_eq!(*a.get::<i32>().unwrap(), [123]);
+    assert!(a.get::<bool>().is_none());
+    let b = archetypes.next().unwrap();
+    assert_eq!(b.ids(), &[f.id(), g.id()]);
+    assert_eq!(*b.get::<i32>().unwrap(), [456, 789]);
+}
