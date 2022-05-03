@@ -144,16 +144,16 @@ impl World {
         });
 
         let archetype = &mut self.archetypes[archetype_id as usize];
+        let index = unsafe { archetype.allocate(entity.id) };
         unsafe {
-            let index = archetype.allocate(entity.id);
             components.put(|ptr, ty| {
                 archetype.put_dynamic(ptr, ty.id(), ty.layout().size(), index);
             });
-            self.entities.meta[entity.id as usize].location = Location {
-                archetype: archetype_id,
-                index,
-            };
         }
+        self.entities.meta[entity.id as usize].location = Location {
+            archetype: archetype_id,
+            index,
+        };
     }
 
     /// Efficiently spawn a large number of entities with the same components
@@ -542,13 +542,12 @@ impl World {
 
         self.flush();
         let loc = self.entities.get_mut(entity)?;
-        unsafe {
             // Assemble Vec<TypeInfo> for the final entity
             let arch = &mut self.archetypes[loc.archetype as usize];
             let mut info = arch.types().to_vec();
             for ty in components.type_info() {
-                if let Some(ptr) = arch.get_dynamic(ty.id(), ty.layout().size(), loc.index) {
-                    ty.drop(ptr.as_ptr());
+                if let Some(ptr) = unsafe { arch.get_dynamic(ty.id(), ty.layout().size(), loc.index) }{
+                    unsafe { ty.drop(ptr.as_ptr()) };
                 } else {
                     info.push(ty);
                 }
@@ -571,9 +570,11 @@ impl World {
             if target == loc.archetype {
                 // Update components in the current archetype
                 let arch = &mut self.archetypes[loc.archetype as usize];
-                components.put(|ptr, ty| {
-                    arch.put_dynamic(ptr, ty.id(), ty.layout().size(), loc.index);
-                });
+                unsafe {
+                    components.put(|ptr, ty| {
+                        arch.put_dynamic(ptr, ty.id(), ty.layout().size(), loc.index);
+                    });
+                }
                 return Ok(());
             }
 
@@ -583,18 +584,19 @@ impl World {
                 loc.archetype as usize,
                 target as usize,
             );
-            let target_index = target_arch.allocate(entity.id);
+            let target_index = unsafe { target_arch.allocate(entity.id) };
             loc.archetype = target;
             let old_index = mem::replace(&mut loc.index, target_index);
-            if let Some(moved) = source_arch.move_to(old_index, |ptr, ty, size| {
+            if let Some(moved) = unsafe { source_arch.move_to(old_index, |ptr, ty, size| {
                 target_arch.put_dynamic(ptr, ty, size, target_index);
-            }) {
+            }) }{
                 self.entities.meta[moved as usize].location.index = old_index;
             }
-            components.put(|ptr, ty| {
-                target_arch.put_dynamic(ptr, ty.id(), ty.layout().size(), target_index);
-            });
-        }
+            unsafe {
+                components.put(|ptr, ty| {
+                    target_arch.put_dynamic(ptr, ty.id(), ty.layout().size(), target_index);
+                });
+            }
         Ok(())
     }
 

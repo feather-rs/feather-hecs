@@ -241,23 +241,23 @@ impl Archetype {
     }
 
     fn grow(&mut self, increment: u32) {
-        unsafe {
-            let old_count = self.len as usize;
-            let new_cap = self.entities.len() + increment as usize;
-            let mut new_entities = vec![!0; new_cap].into_boxed_slice();
-            new_entities[0..old_count].copy_from_slice(&self.entities[0..old_count]);
-            self.entities = new_entities;
+        let old_count = self.len as usize;
+        let new_cap = self.entities.len() + increment as usize;
+        let mut new_entities = vec![!0; new_cap].into_boxed_slice();
+        new_entities[0..old_count].copy_from_slice(&self.entities[0..old_count]);
+        self.entities = new_entities;
 
-            let old_data_size = mem::replace(&mut self.data_size, 0);
-            let mut state = HashMap::with_capacity_and_hasher(self.types.len(), Default::default());
-            for ty in &self.types {
-                self.data_size = align(self.data_size, ty.layout.align());
-                state.insert(ty.id, TypeState::new(self.data_size));
-                self.data_size += ty.layout.size() * new_cap;
-            }
-            let new_data = if self.data_size == 0 {
-                NonNull::dangling()
-            } else {
+        let old_data_size = mem::replace(&mut self.data_size, 0);
+        let mut state = HashMap::with_capacity_and_hasher(self.types.len(), Default::default());
+        for ty in &self.types {
+            self.data_size = align(self.data_size, ty.layout.align());
+            state.insert(ty.id, TypeState::new(self.data_size));
+            self.data_size += ty.layout.size() * new_cap;
+        }
+        let new_data = if self.data_size == 0 {
+            NonNull::dangling()
+        } else {
+            unsafe {
                 NonNull::new(alloc(
                     Layout::from_size_align(
                         self.data_size,
@@ -266,17 +266,21 @@ impl Archetype {
                     .unwrap(),
                 ))
                 .unwrap()
-            };
-            if old_data_size != 0 {
-                for ty in &self.types {
-                    let old_off = self.state.get(&ty.id).unwrap().offset;
-                    let new_off = state.get(&ty.id).unwrap().offset;
+            }
+        };
+        if old_data_size != 0 {
+            for ty in &self.types {
+                let old_off = self.state.get(&ty.id).unwrap().offset;
+                let new_off = state.get(&ty.id).unwrap().offset;
+                unsafe {
                     ptr::copy_nonoverlapping(
                         (*self.data.get()).as_ptr().add(old_off),
                         new_data.as_ptr().add(new_off),
                         ty.layout.size() * old_count,
                     );
                 }
+            }
+            unsafe {
                 dealloc(
                     (*self.data.get()).as_ptr().cast(),
                     Layout::from_size_align_unchecked(
@@ -285,10 +289,10 @@ impl Archetype {
                     ),
                 );
             }
-
-            self.data = UnsafeCell::new(new_data);
-            self.state = state;
         }
+
+        self.data = UnsafeCell::new(new_data);
+        self.state = state;
     }
 
     /// Returns the ID of the entity moved into `index`, if any
@@ -396,7 +400,7 @@ impl Archetype {
             .find(|typ| typ.id == component_type)
             .map(|info| info.layout)
     }
-    
+
     /// Add components from another archetype with identical components
     ///
     /// # Safety
